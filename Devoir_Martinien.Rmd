@@ -1,0 +1,767 @@
+---
+title: "Analyse des déterminants du taux de criminalité à l'aide des données de panel"
+author: "Martinien  GBEMAHLOUE "
+institute: "Ecole Nationale Supérieure de Génie Marhématique et Modélisation (ENSGMM)"
+date: "2025-11-29"
+output:
+  html_document: default
+  latex_engine: xelatex
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+options(bitmapType = "cairo")
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = 'center',
+  fig.height = 4,
+  fig.width = 6,
+  dev = "svg"
+)
+```
+
+# 1. Introduction
+
+La compréhension des déterminants du taux de criminalité constitue un enjeu majeur pour les décideurs publics et les institutions de sécurités. Les variations observées d'une région à une autre ou d'une année à une autre suggèrent que la criminalité résulte de l'interaction de facteurs socio-économiques, démographiques et institutionnels. Dans ce travail, nous exploitons un jeu de données de panel issu du dataset **Crime** pour analyser les facteurs influençant le taux de criminalité au niveau des comtés américains sur plusieurs années.
+
+# 2 Objectifs spécifiques
+
+1.  Analyser les variations du crime entre les comtés et dans le temps
+
+2.  Evaluer l'impact des facteurs socio-économiques, démographiques et judiciaires
+
+3.  Comparer les modèles de panel pour identifier celui le plus pertinent
+
+# 3 Matériels et Méthodes
+
+## 3.1 Matériels
+
+### 3.1.1 Logiciel et langage
+
+-   Langage / RStudio
+
+### 3.1.2 Jeu de données
+
+Le jeu de données **Crime** est un panel regroupant des comtés américains, précisément les comtés de l’État de Caroline du Nord, observés sur plusieurs années. Très utilisé en économétrie appliquée, il permet d’analyser les facteurs socio-économiques, démographiques et institutionnels qui influencent la criminalité à l’échelle locale. L’unité d’observation est le comté (county), la période couvre plusieurs années, formant un panel équilibré ou quasi-équilibré selon le filtrage appliqué, et l’ensemble des informations provient du package plm, via le dataset Crime.
+
+### Description des variables importantes
+
+-   **county :** Identifiant du comté
+
+-   **year :** année de 1981 à 1987
+
+-   **crmrt :** Crimes commis par personne
+
+-   **prbarr :** « probabilité » d’arrestation
+
+-   **PRBCONV :** « probabilité » de condamnation
+
+-   **prbpris :** « probabilité » d’une peine de prison
+
+-   **Avgsen :** Peine moyenne, jours
+
+-   **POLPC :** Police par habitant
+
+-   **density :** Population par mile carré
+
+-   **TaxPC :** Recettes fiscales par habitant
+
+-   **region :** facteur. Un de « autre », « ouest » ou « centre ».
+
+-   **PCTMIN :** Minorité en pourcentage en 1980
+
+-   **WCON :** Salaire hebdomadaire dans la construction
+
+-   **WTUC :** Salaire hebdomadaire dans les transports, les services publics, les communications
+
+-   **WTRD :** Salaire hebdomadaire dans le commerce de gros et de détail
+
+-   **WFIR :** Salaire hebdomadaire en finance, assurance et immobilier
+
+-   **WSER :** Salaire hebdomadaire dans le secteur des services
+
+-   **WMFG :** Salaire hebdomadaire dans la fabrication
+
+-   **WFED :** Salaire hebdomadaire dans le gouvernement fédéral
+
+## 3.3 Méthodes
+
+Notre jeu de données combine à la fois une dimension transversale (plusieurs pays) et une dimension temporelle (plusieurs années pour chaque pays). Cette structure permet d’exploiter à la fois les différences entre pays et les évolutions au cours du temps. Ainsi, les modèles de données de panel sont particulièrement adaptés à notre jeu de données
+
+Le modèle général est :
+
+$$
+y_{it} = \beta_0 + \beta_1 x_{1it} + \beta_2 x_{2it} + a_i + u_{it}
+\tag{1}
+$$
+
+où :
+
+-   $a_i$ : effet individuel spécifique (non observé),
+
+-   $u_{it}$ : erreur idiosyncratique.
+
+------------------------------------------------------------------------
+
+#### 1. Modèle Pooled OLS
+
+Le modèle Pooled OLS empile toutes les observations sans tenir compte des effets individuels :
+
+$$
+y_{it} = \beta_0 + \beta_1 x_{1it} + \beta_2 x_{2it} + u_{it}
+\tag{2}
+$$
+
+Il exploite simultanément la variation **between** et **within**, mais suppose **absence d’hétérogénéité individuelle non observée**.
+
+------------------------------------------------------------------------
+
+#### 2. Estimateur Between
+
+Cet estimateur utilise uniquement la variation **entre individus**, en remplaçant chaque variable par sa moyenne temporelle :
+
+$$
+\bar{y}_i = 
+\beta_0 + \beta_1 \bar{x}_{1i} + \beta_2 \bar{x}_{2i} + \bar{u}_i
+\tag{3}
+$$
+
+Il compare un individu moyen à un autre.
+
+------------------------------------------------------------------------
+
+#### 3. Estimateur en premières différences (FD)
+
+On élimine l’effet individuel $a_i$ en prenant les différences temporelles :
+
+$$
+y_{it} - y_{i,t-1} =
+\beta_1 (x_{1it} - x_{1,i,t-1}) +
+\beta_2 (x_{2it} - x_{2,i,t-1}) +
+(u_{it} - u_{i,t-1})
+\tag{4}
+$$
+
+Ce modèle : - annule $a_i$, - supprime les variables invariantes dans le temps, - possède $N(T-1)$ observations.
+
+------------------------------------------------------------------------
+
+#### 4. Modèle à effets fixes (FE) – Estimation Within
+
+##### 4.1. Transformation en variables centrées
+
+En moyennant sur le temps :
+
+$$
+\bar{y}_i = \beta_0 + \beta_1 \bar{x}_{1i} + \beta_2 \bar{x}_{2i} + \bar{a}_i + \bar{u}_i
+\tag{5}
+$$
+
+En soustrayant (1) − (5), on obtient le modèle Within :
+
+$$
+y_{it} - \bar{y}_i =
+\beta_1(x_{1it} - \bar{x}_{1i}) +
+\beta_2(x_{2it} - \bar{x}_{2i}) +
+(u_{it} - \bar{u}_i)
+\tag{6}
+$$
+
+##### 4.2. Récupération des effets individuels
+
+Après estimation :
+
+$$
+\hat{a}_i =
+\bar{y}_i - 
+\hat{\beta}_0 -
+\hat{\beta}_1 \bar{x}_{1i} -
+\hat{\beta}_2 \bar{x}_{2i}
+\tag{7}
+$$
+
+------------------------------------------------------------------------
+
+#### 5. Régression avec variables muettes (LSDV)
+
+Équivalente à l’estimateur FE, mais introduit explicitement une variable muette pour chaque individu :
+
+$$
+y_{it} =
+\beta_0 + 
+\beta_1 x_{1it} + 
+\beta_2 x_{2it} +
+a_1 d_1 + a_2 d_2 + \cdots + a_N d_N +
+u_{it}
+\tag{8}
+$$
+
+où une dummy est omise (catégorie de référence).\
+Les coefficients sur $x$ sont identiques à ceux du modèle FE.
+
+------------------------------------------------------------------------
+
+#### 6. Modèle à effets aléatoires (RE)
+
+Hypothèse fondamentale :
+
+$$
+\text{Cov}(x_{it}, a_i) = 0
+\tag{9}
+$$
+
+Transformé en modèle quasi-demeaned :
+
+$$
+y_{it} - \theta \bar{y}_i =
+\beta_0 +
+\beta_1(x_{1it} - \theta \bar{x}_{1i}) +
+\beta_2(x_{2it} - \theta \bar{x}_{2i}) +
+(u_{it} - \theta \bar{u}_i)
+\tag{10}
+$$
+
+Le paramètre de pondération est :
+
+$$
+\theta = 
+1 - 
+\frac{\sigma_u^2}{\sigma_u^2 + T \sigma_a^2}
+\tag{11}
+$$
+
+Cas limites :
+
+-   $\theta = 0$ : modèle Pooled OLS, -
+
+-   $\theta = 1$ : modèle FE.
+
+# 4 Résultats et discussions
+
+## 4.1 Importation des packages
+
+```{r}
+library(plm)
+library(stargazer)
+library(gplots)
+library(ggplot2)
+library(plotly)
+library(lmtest)
+library(tseries)
+library(lattice)
+library(dplyr)
+library(corrplot)
+library(car)
+library(sandwich)
+library(tseries)
+```
+
+```{r}
+data("Crime")
+Crime%>%head(5)
+```
+
+## 4.2 Péparation des données
+
+### Sélection des variables qui influencent le taux de criminalité
+
+Les variables suivantes sont retenues en s'appuyant sur des facteurs reconnus dans des études de la criminalité. Selon TechMan LLC[^1], plusieurs éléments influencent le taux de criminalité : caractéristiques du quartier, présence policière, efficacité du système de justice, facteurs culturels, accès aux armes et contexte politique. Dans notre jeu de données, ces dimensions sont représentées notamment par la densité (`density`), la structure démographique (`pctymle`, `pctmin`), la force policière (`polpc`, `prbarr`) et les variables judiciaires (`prbconv`, `prbpris`, `avgsen`). Certains facteurs comme l’influence des médias, l’accès aux armes ou l’instabilité politique ne sont pas observables dans le dataset, mais ils restent théoriquement importants.
+
+[^1]: <https://techmanllc.com/facteurs-influencant-taux-criminalite/>
+
+### Renommons les variables 
+
+```{r}
+data= Crime
+names(data) <- make.names(names(data))
+
+# Garder les variables clés
+panel_data <- data %>%
+  select(
+    county, year,region,density,
+    "prob_arr" = prbarr,
+    "prob_cond" = prbconv,
+    "prob_pris" = prbpris,
+    "duree_peine" = avgsen,
+    "police" = polpc,
+    "pct_jeune_h" = pctymle,
+    "pct_minor" = pctmin,
+    "w_bat" = wcon,
+    "w_comm" = wtuc,
+    "w_commerce" = wtrd,
+    "w_immo" = wfir,
+    "w_service" = wser,
+    "tax_hab" = taxpc,
+    "w_industry" = wser,
+    "taux_crime" = crmrte
+  
+  )
+panel_data%>%head(5)
+
+```
+
+## 4.3 Structure des variables
+
+```{r}
+str(panel_data)
+```
+
+Seule la variable region est catégorielle. Les autres sont toutes quantitatives
+
+```{r}
+summary(panel_data)
+```
+
+Pour la variable **taux de crime,** les valeurs vont de **0.001812** à **0.163835**
+
+Quant à la denstité de population, les valeurs vont de **0.1977 à 8.8277**
+
+```{r}
+pdim(panel_data)
+```
+
+Il s'agit de données de panel équilibré et puisque T\<n, il s'agit d'un short panel data
+
+## 4.4 Valeurs manquantes
+
+```{r}
+is.na(panel_data)%>%sum()
+```
+
+Dans tout notre jeu de données, il n'y a pas de valeurs manquantes
+
+## 4.5 Visualisation exploratoire
+
+### **L’évolution du taux de crime de chaque comté dans le temps**
+
+```{r}
+xyplot(
+  taux_crime ~ year | factor(county),  
+  data = panel_data,
+  type = "l",                      
+  layout = c(5,5),                
+  main = "Taux de crime en fonction du temps dans chaque pays",
+  xlab = "Year",                   
+)
+```
+
+1.  Dans la plupart des graphiques, les courbes sont **quasi plates**, ce qui suggère que le taux de crime **n’a pas beaucoup varié entre 1981 et 1987** pour ces pays.
+
+2.  Les variations sont minimes ,ce qui indique une **faible volatilité** du taux de crime sur cette période.
+
+3.  
+
+    -   Certains pays ont un taux de crime plus élevé
+
+    -   D’autres ont un taux très bas
+
+### **Vérification de Hétérogénéité entre les états**
+
+```{r}
+plotmeans(taux_crime ~ county , data= panel_data, 
+          main = "Hétérogénéité entre les comtés",
+          xlab = "Comté",
+          ylab = "Taux de crime")
+```
+
+-   Certains comtés ont un taux de crime **très bas** (autour de 0.01 ou moins), notamment ceux en bas du graphique
+
+-   D’autres affichent des taux **beaucoup plus élevés** (jusqu’à 0.08 ou plus), comme les comtés 113, 133, 151.
+
+    Ces deux derniers points confirment clairement l’**hétérogénéité spatiale** du taux de crime : **le crime n’est pas uniformément réparti**, mais varie fortement selon la localisation géographique.
+
+### **Vérification de Hétérogénéité entre les années**
+
+```{r}
+plotmeans(taux_crime ~ year, data = panel_data, 
+          main = "Hétérogénéité entre les années",
+          xlab = "Années",
+          ylab = "Taux de crime")
+```
+
+ le taux de criminalité varie d’une année à l’autre,
+
+### **Visualisons ces effets spécifiques**
+
+```{r}
+ggplotly(ggplot(data = panel_data,
+          mapping = aes(x = county,y = taux_crime,color = year))
+         +geom_point()+theme(legend.position = 'bottom')
+         +labs(title = 'Hétérogénéité entre les comtés',
+               subtitle = 'région de chaque comté'))
+```
+
+On observe ici le taux de crime dans chaque comté et à une date donnée. Cette valeur est différente pour chaque comté. Ainsi on conclut que chaque pays à des spécificité internes qui agissent sur le taux de crime.
+
+```{r}
+ggplotly(ggplot(data = panel_data, mapping = aes(x = year,y = taux_crime,
+                                             color = county))
+         +geom_point()+theme(legend.position = 'bottom')
+         +labs(title = 'Hétérogénéité entre les années'))
+```
+
+Dans un comté le taux de crime varie d’une année à une autre.
+
+En conclusion, il existe des spécificités temporelles et individuelles
+
+## 4.5 Corrélation entre les variables
+
+```{r fig.width=9, fig.height=9}
+# Assure-toi que seules les colonnes numériques sont conservées pour la corrélation
+numeric_data = panel_data[,4:ncol(panel_data)]
+# Calcul de la matrice de corrélation
+cor_matrix <- cor(numeric_data, use = "complete.obs")
+
+# Heatmap de corrélation avec corrplot
+corrplot(cor_matrix, method = "color", type = "upper",
+         tl.col = "black", tl.srt = 45,
+         addCoef.col = "black", # Ajoute les coefficients
+         number.cex = 1,
+         tl.cex = 1,
+         title = "Matrice de Corrélation des Variables",
+         mar = c(0,0,1,0))
+```
+
+**density : +0.69**
+
+-   Corrélation très forte : plus d’interactions, plus il y a de criminalité, plus d’opportunités de délits
+
+**police : +0.18**
+
+-   Plus la criminalité est forte, plus le comté affecte d’effectifs policiers.\
+
+**% jeunes hommes : +0.22**
+
+-   Les jeunes hommes étant statistiquement plus impliqués dans les activités criminelles, cette relation est attendue.
+
+**p_arr, p_cond, p_pris : corrélations très faibles**
+
+-   Les probabilités d’arrestation, de condamnation ou de prison ont des corrélations très faibles avec le crime.\
+
+**p_arr – police : +0.29**
+
+-   Plus il y a d’agents → plus grande probabilité d’arrestation.
+
+**p_cond – p_arr : +0.45**
+
+Plus on arrête, plus les dossiers vont en condamnation .
+
+**% jeunes hommes – crime : +0.22**
+
+-   Forte influence démographique sur l’activité criminelle.
+
+**% minorités – crime → +0.17**
+
+-   Corrélation faible mais positive.\
+    reflète des **facteurs socio-économiques structurels**, pas un effet direct
+
+## 4.6 Sélection des variables avec step()
+
+```{r}
+
+model_ols <- lm(
+  taux_crime ~ region + density + prob_arr + prob_cond + prob_pris + tax_hab+
+    w_immo+w_service+duree_peine + police +w_bat+w_comm+w_commerce+    pct_jeune_h + pct_minor + w_industry,
+  data = panel_data
+)
+step(model_ols)
+```
+
+Enfin, sept (07) variables à garder sont : **region,density,prob_arr,prob_cond, police,pct_jeune_h, pct_minor**
+
+```{r}
+data_final <- panel_data %>%
+select(
+    county, year,region,density,
+    prob_arr,
+    prob_cond,
+    police,
+    pct_jeune_h,
+    pct_minor,
+    taux_crime,
+)%>%
+  pdata.frame(index = c("county", "year"))
+data_final = as.data.frame(data_final)
+data_final %>%head(10)
+```
+
+### Vérification des multicolinéarités
+
+**OLS**
+
+```{r}
+ols <- lm(
+  taux_crime ~ . -county - year,
+  data = data_final
+)
+summary(ols)
+
+```
+
+On a des coefficents significatifs
+
+```{r}
+vif(ols)
+```
+
+Pas de muliticolinéarité. Tous les VIF sont \<3
+
+## 4.7 Choix du modele
+
+Si toutes les variables sont stationnaires le choix se porte sur les modèle panel classique
+
+S’il y a un melange de variables stationnaire et non stationnaire ou toutes les variables sont non stationnaire , on opte pour:
+
+  • **Un panel dynamique (First difference model)** lorsqu’il n’y a pas co-intégration
+
+  • **Un ARDL panel** s’il y a co-intégration
+
+### 4.7.1 Test de stationnarité des variables (Test de Levin-lin-Chu et lm-pesaran-Shin)
+
+```{r}
+# Stationnarity test of Levin-Lin-Chu
+llc_stationarity_test = function(variable) {
+  
+    test = purtest(variable, exo = "intercept", pmax = 2, test = "levinlin")
+   llc_p_value = summary(test)$statistic$p.value
+    return(llc_p_value)
+  
+}
+
+# Stationnarity test of ips
+ips_stationarity_test = function(variable) {
+  
+   test = purtest(variable, exo = "intercept", pmax = 2, test = "ips")
+   IPS_p_value = summary(test)$statistic$p.value
+   return(IPS_p_value)
+  
+}
+
+numeric_vars = names(select_if(data_final, is.numeric))
+
+
+Levin_Lin_Chu_p_value = sapply(numeric_vars,function(var)llc_stationarity_test(data_final[var]))
+lm_pesaran_Shin_p_value = sapply(numeric_vars,function(var)ips_stationarity_test(data_final[var]))
+
+result_test = data.frame(variable = numeric_vars,Levin_Lin_Chu_p_value,lm_pesaran_Shin_p_value,row.names = NULL)
+
+# Afficher le tableau des résultats
+print(result_test)
+```
+
+Touts les **p-value\<0.05** alors toutes les variables (cible et explicatives) sont stationnaires alors l’analyse se fait à l’aide du panel classique.
+
+### **4.7.2 Estimation du modèle Pooled**
+
+```{r}
+# Modèle pooled OLS
+pooled_model <- plm(
+  taux_crime ~ density + prob_arr + prob_cond + police +
+    pct_jeune_h + pct_minor,
+  data = data_final,
+  model = "pooling"
+)
+
+summary(pooled_model)
+
+```
+
+Tous les coefficients sont significatifs.
+
+### **Interprétation**
+
+-   Une augmentation de la **densité** de la population d'une unité entraine une augementation du taux de criminalité de **0.0076**
+
+-   une augmentation de la **probabilité d'arrestation** d'une unité dimunue le taux de criminalité de **0.0033**
+
+-   une augmentation de la **probabilité de condamnation** d'une unité dimunue le taux de criminalité de **0.0025**
+
+-   Une augmentation d'une unité de **nombre de policiers par habitant** est associée à une augmentation de **0.026** du taux de criminalité. On pourrait le comprendre en disant que les zones à fort taux de criminalité reçoivent plus de policier
+
+-   Une augmentation d'un point de pourcentage dans la **proportion des jeunes hommes** est associée à une augmentation de **0.075** du taux de criminalit
+
+-   Une augmentation d'un point de pourcentage dans la proportion des minorité entraine une augmentation e **0.027** du taux de criminalité.
+
+**Statistiques globales du modèle**
+
+-   R²_ajusté = 0.695 : Le modèle explique **69.5%** de la variance du taux de criminalité
+
+-   F-statistique = 240.18 (pvalue\<2.2e-16):
+
+### **4.7.3 Estimation du modèle à effets fixes**
+
+```{r}
+fixed_model <- plm(
+  taux_crime ~ density + prob_arr + prob_cond + police +
+    pct_jeune_h + pct_minor,
+  data = data_final,
+  model = "within"
+)
+
+summary(fixed_model)
+```
+
+Seules les variables **prob_arr, prob_cond et police** sont significatifs. Ainsi le lien entre **la densité de population et le taux de criminalité et le pourcentage de jeune homme et le taux de criminalité** etait au niveau du pooled model était probablement dû à des différences entre comtés
+
+### **Interprétation**
+
+-   Une augmentation de la **probabilité d'arrestation** d'une unité au sein d'un même comté est associée à une augmentation de **0.0008** du taux de criminalité
+
+-   Une augmentation de la **probabilité de condamnation** d'une unité au sein d'un même comté est associée à une diminution de **0.001** du taux de criminalité
+
+-   Une augmentation du **nombre de policier par habitant** d'une unité au sein d'un même comté est associée à une diminution de **2.026** du taux de criminalité
+
+### **4.7.4 Estimation du modèle à effets aléatoires**
+
+```{r}
+rand_model <- plm(
+  taux_crime ~ density + prob_arr + prob_cond + police +
+    pct_jeune_h + pct_minor,
+  data = data_final,
+  model = "random"
+)
+
+summary(rand_model)
+```
+
+### **4.7.5 Modèle avec estimateur between**
+
+```{r}
+between_model <- plm(
+  taux_crime ~ density + prob_arr + prob_cond + police +
+    pct_jeune_h + pct_minor,
+  data = panel_data,
+  model = "between"
+)
+
+summary(between_model)
+```
+
+### **4.8 Choix du modèle approprié**
+
+### **4.8.1 Vérification d’effets spécifiques**
+
+```{r}
+plmtest(pooled_model)
+```
+
+p-value \< 2.2e-16**.** Alors on rejette $H_0$ : Pas d'effets significatifs. Ainsi, les modèles les mieux appropriés sont : **les modèles à effets fixes ou les modèles à effets aléatoires.**
+
+### **4.8.2 Choix entre Pooled et fixed models**
+
+```{r}
+pFtest(fixed_model,pooled_model)
+```
+
+Ils'agit d'un test qui permet le choix le mieux approprié entre le pooled model et le modèle à effets fixes. On a **p-value \< 2.2e-16. Donc le modèle à effets fixes est approprié.**
+
+### **4.8.3 Choix entre le modèle à effets fixes et le modèle à effets aléatoires**
+
+**Test de Hausman** : L’hypothèse alternative de ce test est que le modèle à effets fixes est approprié
+
+```{r}
+hausman = phtest(fixed_model,rand_model)
+hausman
+```
+
+Le modèle à effets fixes est approprié. (**p-value \<0.05)**
+
+## **4.9 Estimation du modèle à effets fixes temporel**
+
+```{r}
+fix_model_time  <- plm(
+  taux_crime ~ density + prob_arr + prob_cond + police +
+    pct_jeune_h + pct_minor + factor(year),
+  data = panel_data,
+  model = "within"
+)
+
+summary(fix_model_time)
+```
+
+### **4.9.1 Choix entre effets individuels et effets temporels**
+
+```{r}
+pFtest(fix_model_time,fixed_model)
+```
+
+$H_0$ : Les effets fixes temporelles ne sont pas nécessaires.
+
+**p-value\<0.05 :** Le modèle à effets fixes temporelles est approprié
+
+## **4.10 Validation du modèle**
+
+### 4.10.1 Test d'hétéroscédasticité sur les fixed effets (Test de Breusch-Pagan)
+
+```{r}
+bptest(fix_model_time)
+```
+
+**p-value très faible ,** rejet de l'hypothèse nulle. il y a alors **présence d'hétéroscédasticité**
+
+### 4.10.2 Test de dépendance croisée sur les résidus du modèle à effets fixes
+
+-   $(H_0)$ : Pas de dépendance croisée entre les entités (les erreurs ne sont pas corrélées entre elles).
+
+```{r}
+pcd_test_cd <- pcdtest(fix_model_time)
+pcd_test_cd
+```
+
+**p-value critique . Difficile de tirer une conclusion. Procédons à un autre test**
+
+```{r}
+pcdtest(fix_model_time, test = "lm")
+
+
+```
+
+Le test CD de Pesaran donne une p-value de 0,0509, ce qui est proche du seuil critique. Pour confirmer, j’ai complété l’analyse avec les tests LM (Breusch–Pagan), LM ajusté et Frees. Ces tests permettent de vérifier la présence de dépendance transversale dans des configurations où Pesaran peut être peu puissant. Les résultats combinés qu'il existe clairement une forte dépendance transversale.
+
+### **4.10.3 Test de Breusch-Godfrey pour détecter une autocorrélation dans les résidus du modèle.**
+
+-   $(H_0)$ : Pas d’autocorrélation dans les résidus.
+
+-   $(H_1)$ : la présence d’autocorrélation des erreurs.
+
+```{r}
+pbgtest(fix_model_time)
+```
+
+ La **p-value \< 5%** confirme que les résidus sont autocorrélés dans le temps (serial correlation).I l faut donc corriger cette autocorrélation pour améliorer la fiabilité des résultats.
+
+**`En résumé`**, on note trois problèmes : celui de l'hétéroscédasticité, dépendance croisée sur les résidus du modèle et de l'autocorrélation
+
+## 4.10.4 Correction  par les modèles robustes
+
+```{r}
+coeftest(fix_model_time, vcov = vcovSCC(fix_model_time))
+
+```
+
+#### Interpréation des résultats
+
+-   Coefficients significatifs au seuil de 5%
+
+    -   **prob_cond :** Une augmentation d'une unité de la probabilité de condamnation diminnue de **0.09% le taux de criminalité**
+
+    -   **police :** Une augmentation d'une unité du nombre de policier par habitant est associée à une augmentation de **2.13** du taux de criminalité . (contre intuitif). Cela peut s'expliquer par une stratégie de déploiement réactif dans les comtés à fort taux de crime
+
+    -   **Les effets temporels :** Plusieurs années montrent des coefficients significatifs, indiquant des variations spécifiques à certaines années qui influencent le score des permis.
+
+### Vérification de la correction d'hétéroscédasticité
+
+Après correction, les erreurs standards augmentent sensiblement et plusieurs variables perdent leur significativité, ce qui montre que les tests initiaux étaient biaisés. Ainsi, même si le modèle robuste ne modifie pas les coefficients estimés, il fournit des t-statistiques et des p-values beaucoup plus fiables. Le modèle robuste est donc meilleur.
+
+### Discussion sur la variable police
+
+La variable **`police`** se distingue nettement dans nos estimations par sa **forte significativité statistique** (p \< 0,001) et la **stabilité de son signe et de son amplitude** à travers les différentes spécifications, y compris après correction robuste pour l’autocorrélation, l’hétéroscédasticité et la dépendance transversale. Ce résultat suggère que l’effort policier exerce un **effet positif significatif** sur le phénomène étudié. Son interprétation mérite d’être nuancée. D’un point de vue de **modélisation causale**, la variable `police` pourrait être **endogène** : les autorités tendent naturellement à allouer plus de ressources là où le phénomène est le plus intense.
+
+# 5 Conclusion
+
+L’ensemble de ce travail a permis d’apporter un éclairage précis sur les déterminants du taux de criminalité au sein des différents comtés. Grâce à la mise en place d’un panel de données et à l’utilisation de plusieurs modèles notamment le modèle pooled, les effets fixes, les effets aléatoires et le modèle between, nous avons pu analyser à la fois l’hétérogénéité entre les comtés et l’évolution dans le temps. Les tests statistiques réalisés, ainsi que les diagnostics comme la multicolinéarité ou la sélection de variables, ont contribué à renforcer la robustesse de nos résultats. Les visualisations produites ont également mis en évidence des disparités significatives, confirmant l’importance de facteurs structurels dans la dynamique du taux de criminalité. En dépit de certaines limites liées aux données disponibles ou à la spécification des modèles, ce projet offre une compréhension approfondie des principaux facteurs influençant la criminalité. Il ouvre par ailleurs des pistes pour des analyses futures, notamment l’intégration de variables supplémentaires ( les varibles instrumentales pour corriger d'endogénéité). De manière générale, cette étude montre que l’analyse en panel constitue un outil puissant pour étudier les phénomènes sociaux complexes et leurs variations spatio-temporelles.
+
+# Référence
